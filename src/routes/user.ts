@@ -16,11 +16,30 @@ useRouter.post("/signup", async (c) => {
   }).$extends(withAccelerate());
 
   const body = await c.req.json();
+  console.log("Signup body:", body);
+
+  if (!body.email || !body.password) {
+    return c.json({ error: "Email and password are required" }, 400);
+  }
+
+  if (!c.env.JWT_SECRET) {
+    console.error("JWT_SECRET missing");
+    return c.json({ error: "Server misconfigured" }, 500);
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email: body.email },
+  });
+
+  if (existingUser) {
+    return c.json({ error: "User already exists" }, 400);
+  }
 
   const user = await prisma.user.create({
     data: {
       email: body.email,
       password: body.password,
+      name: body.name,
     },
   });
 
@@ -28,6 +47,7 @@ useRouter.post("/signup", async (c) => {
 
   return c.json({ jwt: token });
 });
+
 useRouter.post("/signin", async (c) => {
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
